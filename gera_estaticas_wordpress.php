@@ -7,6 +7,7 @@ Description: Gerador de estáticas para wordpress, diminuindo assim o uso de ban
 Author: Eudes Belmiro
 Version: 1.0
 */
+
 date_default_timezone_set('America/Recife');
 $nome = str_replace('http://'.$_SERVER['HTTP_HOST'].'/', '', get_bloginfo('url'));
 define('DS', DIRECTORY_SEPARATOR);
@@ -14,7 +15,10 @@ define('BASE_DIR', ABSPATH);
 define('BASE_DIR_MOBILE', ABSPATH . $nome.'_mobile');
 define('TEM_MOBILE', is_dir(get_theme_root() . DS . get_template() . '_mobile') ? true : false);
 
-define('POST_POR_PAGINA_GERADOR', 10);
+
+define('DISTRIBUIDO', FALSE);
+
+define('POST_POR_PAGINA_GERADOR', 5);
 
 Class GeraEstaticos
 {
@@ -29,7 +33,7 @@ Class GeraEstaticos
 		$pagina = $this->replaceLinks(file_get_contents($permalink));
 		$dir = $this->criarDiretorio(BASE_DIR, '/');
 		$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
-
+		
 		$file= fopen($dir . 'index.htm', 'w+');
 		fwrite($file, $pagina);
 		fclose($file);	
@@ -37,7 +41,7 @@ Class GeraEstaticos
 		/*****		Versão Mobile		*****/
 		if(TEM_MOBILE)
 		{
-			$permalinkMob = get_site_url() . '?mobile_device&key=gerador';
+			$permalinkMob = get_site_url() . '?mobile_device&key=gerador&r='.rand();
 			$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob));
 			$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, '/');
 			$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
@@ -87,15 +91,16 @@ Class GeraEstaticos
 	}
 	
 	public function gerarEstaticaPostPagina($id)
-	{    
+	{   		
 		$permalink = get_permalink($id);				
 		if(strpos($permalink, 'geraindex') == false)
 		{		
 			$permalink = get_permalink($id);			
 			$pagina = $this->replaceLinks(file_get_contents($permalink .'?key=gerador'));
 			
-			$dir = $this->criarDiretorio(BASE_DIR, str_replace(get_site_url(),'',$permalink));
-
+			$dir = $this->criarDiretorio(BASE_DIR, str_replace(get_site_url(),'',$permalink));			
+		
+			
 			foreach(wp_get_post_categories($id) as $cat)
 			{		
 				$this->gerarEstaticaTaxonomy($cat, $cat, 'category');
@@ -104,7 +109,7 @@ Class GeraEstaticos
 			foreach(wp_get_post_terms($id) as $term)
 			{		
 				$this->gerarEstaticaTaxonomy($term->term_taxonomy_id, $term->term_taxonomy_id, 'post_tag');
-			}	
+			}
 			
 			$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
 			
@@ -117,30 +122,19 @@ Class GeraEstaticos
 			if(TEM_MOBILE)
 			{
 				$permalinkMob = get_permalink($id);
-				$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob.'?mobile_device&key=gerador'));
+				$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob.'?mobile_device&key=gerador&r='.rand()));
 				
 				$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, str_replace(get_site_url(),'',$permalinkMob));
-
-				foreach(wp_get_post_categories($id) as $cat)
-				{		
-					$this->gerarEstaticaTaxonomy($cat, $cat, 'category');
-				}
-
-				foreach(wp_get_post_terms($id) as $term)
-				{		
-					$this->gerarEstaticaTaxonomy($term->term_taxonomy_id, $term->term_taxonomy_id, 'post_tag');
-				}	
-				
 				$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
 				
 				$fileMob = fopen($dirMob . 'index.htm', 'w+');
 				fwrite($fileMob, $paginaMob);
 				fclose($fileMob);	
-			}			
+			}
 		}
 		
 		$this->geraHome();
-		$this->geraEstaticaPaginacao();
+		$this->geraEstaticaPaginacao();		
 	}
 	
 	public function gerarEstaticaTaxonomy($termo, $termoId, $taxonomy)
@@ -156,10 +150,11 @@ Class GeraEstaticos
 		fclose($file);
 		
 		/*****		Versão Mobile		*****/
+		/* Nosos mobile não existem pagians de categoria e tag
 		if(TEM_MOBILE)
 		{
 			$linkMob = get_term_link(get_term_by('term_taxonomy_id', $termo, $taxonomy));	
-			$paginaMob = $this->replaceLinks(file_get_contents($linkMob.'?mobile_device&key=gerador'));
+			$paginaMob = $this->replaceLinks(file_get_contents($linkMob.'?mobile_device&key=gerador&r='.rand()));
 			$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, str_replace(get_site_url(),'',$linkMob));			
 			
 			$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
@@ -168,8 +163,8 @@ Class GeraEstaticos
 			fwrite($fileMob, $paginaMob);
 			fclose($fileMob);
 		}		
-		
-		$this->geraHome();
+		*/
+		//$this->geraHome();
 	}
 
 	public function apagarEstaticaTaxonomy($termo, $termoId, $taxonomy, $objeto)
@@ -191,6 +186,7 @@ Class GeraEstaticos
 		}
 		
 		/*****		Versão Mobile		*****/
+		
 		if(TEM_MOBILE)
 		{
 			$fileMob = BASE_DIR_MOBILE . DS . get_taxonomy($objeto->taxonomy)->rewrite['slug'] . DS . $objeto->slug .DS;
@@ -216,7 +212,7 @@ Class GeraEstaticos
 	private function geraEstaticaPaginacao()
 	{
 		$numPosts = round(wp_count_posts()->publish / POST_POR_PAGINA_GERADOR);
-		$pages = ($numPosts >= 4) ? 4 : $numPosts;
+		$pages = ($numPosts >= 5) ? 5 : $numPosts;
 		
 		for($a=2;$a<=$pages;$a++)		
 		{
@@ -233,11 +229,11 @@ Class GeraEstaticos
 			/*****		Versão Mobile		*****/
 			if(TEM_MOBILE)
 			{
-				$permalinkMob = get_site_url() . "/geraindex$a/?mobile_device";	
+				$permalinkMob = get_site_url() . "/geraindex$a/?mobile_device&r=".rand();	
 				$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob));
 				$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, "/page/$a/");
 				
-				$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
+				$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
 				
 				$fileMob = fopen($dirMob . 'index.htm', 'w+');
 				fwrite($fileMob, $paginaMob);
@@ -245,7 +241,15 @@ Class GeraEstaticos
 			}			
 		}
 	}
-
+	
+	public function geraEstaticaComentario($st1, $st2, $com)
+	{
+		if($st1 == 'approved')
+		{
+			$this->gerarEstaticaPostPagina($com->comment_post_ID);
+		}	
+	}
+	
 	private function criarDiretorio($base, $dir)
 	{
 		if(!is_dir($base . $dir))
@@ -277,12 +281,12 @@ Class GeraEstaticos
 	private function replaceLinks($conteudo)
 	{	
 		$saida = $conteudo;				
-		$array = array('/geraindex4','/geraindex3','/geraindex2','/geraindex');
+		$array = array('/geraindex5','/geraindex4','/geraindex3','/geraindex2','/geraindex');
 		for($a=0;$a<count($array);$a++)
 		{
 			$saida = str_replace(get_site_url() . $array[$a], get_site_url(), $saida);
 		}		
-	
+
 		return $saida;
 	}	
 }
@@ -312,7 +316,7 @@ add_action('edit_term', array($gerador, 'gerarEstaticaTaxonomy'), 10,3);
 add_action('delete_term', array($gerador, 'apagarEstaticaTaxonomy'), 10,4);
 
 // Ao realizar alguam operação com comentário
-//add_action('pre_comment_approved', array($gerador, 'geraEstaticaComentario'), 10, 2);
+add_action('transition_comment_status', array($gerador, 'geraEstaticaComentario'), 10, 3);
 
 /**********************************************
 OBSERVAÇÕES:
@@ -323,5 +327,25 @@ RewriteCond %{REQUEST_FILENAME} -d
 RewriteCond %{QUERY_STRING} key=gerador [OR]
 RewriteCond %{QUERY_STRING} dinamico=true
 RewriteRule ^(.*)$ /index.php?%{QUERY_STRING} [L]
+
+######################################################################
+
+No arquivo WP-CONFIG.PHP do servidor de páginas inserir o seguinte bloco
+
+define('WP_HOME','URL_DE_PAGINAS');
+define('WP_SITEURL','URL_DE_PAGINAS');
+
+######################################################################
+
+No arquivo WP-LOGIN.PHP do servidor de páginas, após a linha que contém o trecho 
+'require( dirname(__FILE__) . '/wp-load.php' );'
+inserir o seguinte bloco, bloqueando o acesso ao cockpit pelo sv de paginas
+
+
+header('HTTP/1.1 301 Moved Permanently');
+header('location: '.WP_HOME.'');
+
+######################################################################
+
 **********************************************/
 ?>
