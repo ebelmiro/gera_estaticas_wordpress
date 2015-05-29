@@ -15,11 +15,6 @@ define('BASE_DIR', ABSPATH);
 define('BASE_DIR_MOBILE', ABSPATH . $nome.'_mobile');
 define('TEM_MOBILE', is_dir(get_theme_root() . DS . get_template() . '_mobile') ? true : false);
 
-
-define('DISTRIBUIDO', FALSE);
-
-define('POST_POR_PAGINA_GERADOR', 5);
-
 Class GeraEstaticos
 {
 	public function __construct()
@@ -29,7 +24,7 @@ Class GeraEstaticos
 	
 	private function geraHome()
 	{		
-		$permalink = get_site_url() . '/geraindex/';		
+		$permalink = get_site_url();		
 		$pagina = $this->replaceLinks(file_get_contents($permalink));
 		$dir = $this->criarDiretorio(BASE_DIR, '/');
 		$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
@@ -41,7 +36,7 @@ Class GeraEstaticos
 		/*****		Versão Mobile		*****/
 		if(TEM_MOBILE)
 		{
-			$permalinkMob = get_site_url() . '?mobile_device&key=gerador&r='.rand();
+			$permalinkMob = get_site_url() . '?mobile_device&key=gerador';
 			$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob));
 			$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, '/');
 			$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
@@ -93,7 +88,7 @@ Class GeraEstaticos
 	public function gerarEstaticaPostPagina($id)
 	{   		
 		$permalink = get_permalink($id);				
-		if(strpos($permalink, 'geraindex') == false)
+		if(strpos($permalink, 'geraindex') == false && is_string($permalink))
 		{		
 			$permalink = get_permalink($id);			
 			$pagina = $this->replaceLinks(file_get_contents($permalink .'?key=gerador'));
@@ -122,7 +117,7 @@ Class GeraEstaticos
 			if(TEM_MOBILE)
 			{
 				$permalinkMob = get_permalink($id);
-				$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob.'?mobile_device&key=gerador&r='.rand()));
+				$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob.'?mobile_device&key=gerador'));
 				
 				$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, str_replace(get_site_url(),'',$permalinkMob));
 				$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
@@ -140,31 +135,34 @@ Class GeraEstaticos
 	public function gerarEstaticaTaxonomy($termo, $termoId, $taxonomy)
 	{	
 		$link = get_term_link(get_term_by('term_taxonomy_id', $termo, $taxonomy));	
-		$pagina = $this->replaceLinks(file_get_contents($link . '?key=gerador'));
-		$dir = $this->criarDiretorio(BASE_DIR, str_replace(get_site_url(),'',$link));			
-		
-		$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
-		
-		$file= fopen($dir . 'index.htm', 'w+');
-		fwrite($file, $pagina);
-		fclose($file);
-		
-		/*****		Versão Mobile		*****/
-		/* Nosos mobile não existem pagians de categoria e tag
-		if(TEM_MOBILE)
+		if(is_string($link))
 		{
-			$linkMob = get_term_link(get_term_by('term_taxonomy_id', $termo, $taxonomy));	
-			$paginaMob = $this->replaceLinks(file_get_contents($linkMob.'?mobile_device&key=gerador&r='.rand()));
-			$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, str_replace(get_site_url(),'',$linkMob));			
+			$pagina = $this->replaceLinks(file_get_contents($link . '?key=gerador'));
+			$dir = $this->criarDiretorio(BASE_DIR, str_replace(get_site_url(),'',$link));			
 			
-			$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
+			$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
 			
-			$fileMob= fopen($dirMob . 'index.htm', 'w+');
-			fwrite($fileMob, $paginaMob);
-			fclose($fileMob);
-		}		
-		*/
-		//$this->geraHome();
+			$file= fopen($dir . 'index.htm', 'w+');
+			fwrite($file, $pagina);
+			fclose($file);
+			
+			/*****		Versão Mobile		*****/
+			/* Nosos mobile não existem pagians de categoria e tag
+			if(TEM_MOBILE)
+			{
+				$linkMob = get_term_link(get_term_by('term_taxonomy_id', $termo, $taxonomy));	
+				$paginaMob = $this->replaceLinks(file_get_contents($linkMob.'?mobile_device&key=gerador&r='.rand()));
+				$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, str_replace(get_site_url(),'',$linkMob));			
+				
+				$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
+				
+				$fileMob= fopen($dirMob . 'index.htm', 'w+');
+				fwrite($fileMob, $paginaMob);
+				fclose($fileMob);
+			}		
+			*/
+			//$this->geraHome();
+		}
 	}
 
 	public function apagarEstaticaTaxonomy($termo, $termoId, $taxonomy, $objeto)
@@ -211,34 +209,36 @@ Class GeraEstaticos
 	
 	private function geraEstaticaPaginacao()
 	{
-		$numPosts = round(wp_count_posts()->publish / POST_POR_PAGINA_GERADOR);
-		$pages = ($numPosts >= 5) ? 5 : $numPosts;
+		$pages = 5;
 		
 		for($a=2;$a<=$pages;$a++)		
 		{
-			$permalink = get_site_url() . "/geraindex$a/";	
-			$pagina = $this->replaceLinks(file_get_contents($permalink));
-			$dir = $this->criarDiretorio(BASE_DIR,"/page/$a/");
-			
-			$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
-			
-			$file = fopen($dir . 'index.htm', 'w+');
-			fwrite($file, $pagina);
-			fclose($file);	
-			
-			/*****		Versão Mobile		*****/
-			if(TEM_MOBILE)
+			$permalink = get_site_url() . "/page/$a/?key=gerador";	
+			if(is_string($permalink))
 			{
-				$permalinkMob = get_site_url() . "/geraindex$a/?mobile_device&r=".rand();	
-				$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob));
-				$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, "/page/$a/");
+				$pagina = $this->replaceLinks(file_get_contents($permalink));
+				$dir = $this->criarDiretorio(BASE_DIR,"/page/$a/");
 				
-				$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
+				$pagina.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
 				
-				$fileMob = fopen($dirMob . 'index.htm', 'w+');
-				fwrite($fileMob, $paginaMob);
-				fclose($fileMob);
-			}			
+				$file = fopen($dir . 'index.htm', 'w+');
+				fwrite($file, $pagina);
+				fclose($file);	
+				
+				/*****		Versão Mobile		*****/
+				if(TEM_MOBILE)
+				{
+					$permalinkMob = get_site_url() . "/page/$a/?mobile_device&key=gerador";	
+					$paginaMob = $this->replaceLinks(file_get_contents($permalinkMob));
+					$dirMob = $this->criarDiretorio(BASE_DIR_MOBILE, "/page/$a/");
+					
+					$paginaMob.='<!-- Gerado em '.date('d/m/Y H:i:s').' -->';
+					
+					$fileMob = fopen($dirMob . 'index.htm', 'w+');
+					fwrite($fileMob, $paginaMob);
+					fclose($fileMob);
+				}
+			}
 		}
 	}
 	
@@ -281,10 +281,10 @@ Class GeraEstaticos
 	private function replaceLinks($conteudo)
 	{	
 		$saida = $conteudo;				
-		$array = array('/geraindex5','/geraindex4','/geraindex3','/geraindex2','/geraindex');
+		$array = array('?key=gerador','&#038;key=gerador');
 		for($a=0;$a<count($array);$a++)
 		{
-			$saida = str_replace(get_site_url() . $array[$a], get_site_url(), $saida);
+			$saida = str_replace(get_site_url() . $array[$a], get_site_url(), $saida);		
 		}		
 
 		return $saida;
